@@ -18,60 +18,142 @@
     !SUPABASE_URL.includes('SEU-PROJETO') &&
     !SUPABASE_ANON_KEY.includes('SUA-CHAVE');
 
-  const sb = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+  const sb = configured
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
 
   /* ---------- helpers ---------- */
 
-  const ok = ({ data, error }) => { if (error) throw error; return data; };
+  const ok = ({ data, error }) => {
+    if (error) throw error;
+    return data;
+  };
 
-  // Converte linhas do banco (snake_case) para o formato que o front usa
-  const P = r => ({ id: r.id, code: r.code, name: r.name, client: r.client, owner: r.owner, status: r.status, createdAt: r.created_at });
-  const T = r => ({
-    id: r.id, projectId: r.project_id, description: r.description, owner: r.owner,
-    estimateMin: r.estimate_min, createdAt: r.created_at, status: r.status,
-    completedAt: r.completed_at, finalMinutes: r.final_minutes
+  // Converte linhas do banco para o formato utilizado pelo front-end.
+  const P = r => ({
+    id: r.id,
+    code: r.code,
+    name: r.name,
+    client: r.client,
+    owner: r.owner,
+    status: r.status,
+    notes: r.notes || '',
+    notesUpdatedAt: r.notes_updated_at || null,
+    createdAt: r.created_at
   });
-  const E = r => ({ id: r.id, topicId: r.topic_id, date: r.work_date, minutes: r.minutes, owner: r.owner, note: r.note || '' });
 
-  // Converte um "patch" do front para colunas do banco
+  const T = r => ({
+    id: r.id,
+    projectId: r.project_id,
+    description: r.description,
+    owner: r.owner,
+    estimateMin: r.estimate_min,
+    createdAt: r.created_at,
+    status: r.status,
+    completedAt: r.completed_at,
+    finalMinutes: r.final_minutes
+  });
+
+  const E = r => ({
+    id: r.id,
+    topicId: r.topic_id,
+    date: r.work_date,
+    minutes: r.minutes,
+    owner: r.owner,
+    note: r.note || ''
+  });
+
+  const D = r => ({
+    id: r.id,
+    projectId: r.project_id,
+    description: r.description,
+    dueDate: r.due_date,
+    deliveredAt: r.delivered_at || null,
+    createdAt: r.created_at
+  });
+
+  // Converte alterações do front-end para colunas do banco.
   function toRow(patch, map) {
     const out = {};
-    for (const k of Object.keys(patch)) if (k in map) out[map[k]] = patch[k];
+    for (const k of Object.keys(patch)) {
+      if (k in map) out[map[k]] = patch[k];
+    }
     return out;
   }
-  const TOPIC_COLS = { description: 'description', owner: 'owner', estimateMin: 'estimate_min', status: 'status', completedAt: 'completed_at' };
-  const ENTRY_COLS = { date: 'work_date', minutes: 'minutes', owner: 'owner', note: 'note' };
 
-  // O Supabase devolve no máximo 1000 linhas por consulta: busca em páginas.
+  const TOPIC_COLS = {
+    description: 'description',
+    owner: 'owner',
+    estimateMin: 'estimate_min',
+    status: 'status',
+    completedAt: 'completed_at'
+  };
+
+  const ENTRY_COLS = {
+    date: 'work_date',
+    minutes: 'minutes',
+    owner: 'owner',
+    note: 'note'
+  };
+
+  // Busca registros em páginas para não ultrapassar o limite do Supabase.
   async function fetchAll(table, orderCols) {
     const size = 1000;
-    let from = 0, out = [];
+    let from = 0;
+    let out = [];
+
     for (;;) {
       let q = sb.from(table).select('*');
-      for (const c of orderCols) q = q.order(c, { ascending: true });
+
+      for (const c of orderCols) {
+        q = q.order(c, { ascending: true });
+      }
+
       const data = ok(await q.range(from, from + size - 1));
       out = out.concat(data);
+
       if (data.length < size) break;
       from += size;
     }
+
     return out;
   }
 
   function newCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
     let s = '';
-    for (let i = 0; i < 4; i++) s += chars[Math.floor(Math.random() * chars.length)];
+
+    for (let i = 0; i < 4; i++) {
+      s += chars[Math.floor(Math.random() * chars.length)];
+    }
+
     return `PRJ-${new Date().getFullYear()}-${s}`;
   }
 
-  // Mensagem amigável para qualquer erro vindo do Supabase
+  // Mensagens amigáveis para erros do Supabase.
   function explain(e) {
     const msg = (e && e.message) || String(e);
-    if (e && e.code === '23503') return 'Este item está em uso e não pode ser removido.';
-    if (e && e.code === '23505') return 'Já existe um registro igual.';
-    if (e && (e.code === '42501' || /row-level security/i.test(msg))) return 'Sem permissão para esta ação. Saia e entre novamente.';
-    if (/jwt|expired/i.test(msg)) return 'Sua sessão expirou. Saia e entre de novo.';
-    if (/failed to fetch|network/i.test(msg)) return 'Sem conexão com o Supabase. Verifique a internet.';
+
+    if (e && e.code === '23503') {
+      return 'Este item está em uso e não pode ser removido.';
+    }
+
+    if (e && e.code === '23505') {
+      return 'Já existe um registro igual.';
+    }
+
+    if (e && (e.code === '42501' || /row-level security/i.test(msg))) {
+      return 'Sem permissão para esta ação. Saia e entre novamente.';
+    }
+
+    if (/jwt|expired/i.test(msg)) {
+      return 'Sua sessão expirou. Saia e entre de novo.';
+    }
+
+    if (/failed to fetch|network/i.test(msg)) {
+      return 'Sem conexão com o Supabase. Verifique a internet.';
+    }
+
     return 'Não foi possível concluir: ' + msg;
   }
 
@@ -81,90 +163,254 @@
     configured,
     explain,
 
+    // Autenticação.
     auth: {
       async session() {
         const { data, error } = await sb.auth.getSession();
         if (error) throw error;
         return data.session;
       },
+
       async signIn(email, password) {
-        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        const { data, error } = await sb.auth.signInWithPassword({
+          email,
+          password
+        });
+
         if (error) throw error;
         return data.user;
       },
-      async signOut() { await sb.auth.signOut(); },
-      onChange(cb) { sb.auth.onAuthStateChange((event, session) => cb(event, session)); }
+
+      async signOut() {
+        const { error } = await sb.auth.signOut();
+        if (error) throw error;
+      },
+
+      onChange(cb) {
+        sb.auth.onAuthStateChange((event, session) => {
+          cb(event, session);
+        });
+      }
     },
 
-    // Carrega tudo de uma vez para desenhar o painel
+    // Carrega os dados utilizados pelo painel.
     async loadAll() {
-      const [team, projects, topics, entries] = await Promise.all([
-        fetchAll('team_members', ['name']),
-        fetchAll('projects', ['created_at', 'code']),
-        fetchAll('topics', ['created_at', 'id']),
-        fetchAll('entries', ['work_date', 'id'])
-      ]);
+      const [team, clients, projects, topics, entries, pendencies] =
+        await Promise.all([
+          fetchAll('team_members', ['name']),
+          fetchAll('clients', ['name']),
+          fetchAll('projects', ['created_at', 'code']),
+          fetchAll('topics', ['created_at', 'id']),
+          fetchAll('entries', ['work_date', 'id']),
+          fetchAll('pendencies', ['due_date', 'created_at'])
+        ]);
+
       return {
         team: team.map(r => r.name),
+        clients: clients.map(r => r.name),
         projects: projects.map(P),
         topics: topics.map(T),
-        entries: entries.map(E)
+        entries: entries.map(E),
+        pendencies: pendencies.map(D)
       };
     },
 
+    // Cadastro e remoção da equipe.
     team: {
-      async add(name) { ok(await sb.from('team_members').insert({ name })); },
-      async remove(name) { ok(await sb.from('team_members').delete().eq('name', name)); }
+      async add(name) {
+        ok(await sb.from('team_members').insert({
+          name: name.trim()
+        }));
+      },
+
+      async remove(name) {
+        ok(await sb.from('team_members').delete().eq('name', name));
+      }
     },
 
+    // Cadastro e remoção de clientes.
+    clients: {
+      async add(name) {
+        ok(await sb.from('clients').insert({
+          name: name.trim()
+        }));
+      },
+
+      async remove(name) {
+        ok(await sb.from('clients').delete().eq('name', name));
+      }
+    },
+
+    // Projetos e observações.
     projects: {
-      // O código é gerado aqui; se por azar repetir, tenta outro.
       async create({ name, client, owner, createdAt }) {
         for (let i = 0; i < 5; i++) {
-          const { data, error } = await sb.from('projects')
-            .insert({ code: newCode(), name, client, owner, created_at: createdAt })
-            .select().single();
+          const { data, error } = await sb
+            .from('projects')
+            .insert({
+              code: newCode(),
+              name,
+              client,
+              owner,
+              created_at: createdAt
+            })
+            .select()
+            .single();
+
           if (!error) return P(data);
+
           if (error.code !== '23505') throw error;
         }
+
         throw new Error('Não foi possível gerar um código de projeto único.');
       },
+
       async setStatus(id, status) {
-        return P(ok(await sb.from('projects').update({ status }).eq('id', id).select().single()));
+        return P(ok(await sb
+          .from('projects')
+          .update({ status })
+          .eq('id', id)
+          .select()
+          .single()));
       },
-      async remove(id) { ok(await sb.from('projects').delete().eq('id', id)); }   // apaga tópicos e horas em cascata
+
+      // Salva ou atualiza as observações do projeto.
+      async updateNotes(id, notes) {
+        return P(ok(await sb
+          .from('projects')
+          .update({ notes })
+          .eq('id', id)
+          .select()
+          .single()));
+      },
+
+      async remove(id) {
+        ok(await sb.from('projects').delete().eq('id', id));
+      }
     },
 
+    // Tópicos dos projetos.
     topics: {
-      async create(projectId, { description, owner, estimateMin, createdAt }) {
-        return T(ok(await sb.from('topics')
-          .insert({ project_id: projectId, description, owner, estimate_min: estimateMin, created_at: createdAt })
-          .select().single()));
+      async create(projectId, {
+        description,
+        owner,
+        estimateMin,
+        createdAt
+      }) {
+        return T(ok(await sb
+          .from('topics')
+          .insert({
+            project_id: projectId,
+            description,
+            owner,
+            estimate_min: estimateMin,
+            created_at: createdAt
+          })
+          .select()
+          .single()));
       },
-      // patch aceita: description, owner, estimateMin, status, completedAt
+
       async update(id, patch) {
-        return T(ok(await sb.from('topics').update(toRow(patch, TOPIC_COLS)).eq('id', id).select().single()));
+        return T(ok(await sb
+          .from('topics')
+          .update(toRow(patch, TOPIC_COLS))
+          .eq('id', id)
+          .select()
+          .single()));
       },
-      // O banco soma as horas e grava o total final (trigger topics_before_update)
+
       async complete(id, completedAt) {
-        return api.topics.update(id, { status: 'done', completedAt });
+        return api.topics.update(id, {
+          status: 'done',
+          completedAt
+        });
       },
+
       async reopen(id) {
-        return api.topics.update(id, { status: 'open' });
+        return api.topics.update(id, {
+          status: 'open'
+        });
       },
-      async remove(id) { ok(await sb.from('topics').delete().eq('id', id)); }
+
+      async remove(id) {
+        ok(await sb.from('topics').delete().eq('id', id));
+      }
     },
 
+    // Pendências: descrição, data prevista e data real da entrega.
+    // Não utiliza estimativa de horas.
+    pendencies: {
+      async create(projectId, { description, dueDate, createdAt }) {
+        return D(ok(await sb
+          .from('pendencies')
+          .insert({
+            project_id: projectId,
+            description: description.trim(),
+            due_date: dueDate,
+            created_at: createdAt
+          })
+          .select()
+          .single()));
+      },
+
+      async update(id, patch) {
+        const row = {};
+
+        if ('description' in patch) {
+          row.description = patch.description.trim();
+        }
+
+        if ('dueDate' in patch) {
+          row.due_date = patch.dueDate;
+        }
+
+        // Quando entregue, salva a data real.
+        // Para desmarcar a entrega, envie deliveredAt: null.
+        if ('deliveredAt' in patch) {
+          row.delivered_at = patch.deliveredAt || null;
+        }
+
+        return D(ok(await sb
+          .from('pendencies')
+          .update(row)
+          .eq('id', id)
+          .select()
+          .single()));
+      },
+
+      async remove(id) {
+        ok(await sb.from('pendencies').delete().eq('id', id));
+      }
+    },
+
+    // Lançamentos de horas dos tópicos.
     entries: {
       async create(topicId, { date, minutes, owner, note }) {
-        return E(ok(await sb.from('entries')
-          .insert({ topic_id: topicId, work_date: date, minutes, owner, note })
-          .select().single()));
+        return E(ok(await sb
+          .from('entries')
+          .insert({
+            topic_id: topicId,
+            work_date: date,
+            minutes,
+            owner,
+            note
+          })
+          .select()
+          .single()));
       },
+
       async update(id, patch) {
-        return E(ok(await sb.from('entries').update(toRow(patch, ENTRY_COLS)).eq('id', id).select().single()));
+        return E(ok(await sb
+          .from('entries')
+          .update(toRow(patch, ENTRY_COLS))
+          .eq('id', id)
+          .select()
+          .single()));
       },
-      async remove(id) { ok(await sb.from('entries').delete().eq('id', id)); }
+
+      async remove(id) {
+        ok(await sb.from('entries').delete().eq('id', id));
+      }
     }
   };
 
