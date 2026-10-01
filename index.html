@@ -85,6 +85,15 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .p-body{padding:1.25rem}
 .p-actions{display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap;margin-bottom:1.25rem}
 .new-topic{display:grid;grid-template-columns:1fr 180px 190px auto;gap:.75rem;align-items:end;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);padding:1rem;margin-bottom:1.5rem}
+.notes-box{border:1px solid var(--line);border-radius:var(--radius);padding:1rem;margin:0 0 1.5rem;background:var(--surface-2)}
+.notes-box textarea{min-height:150px;resize:vertical;white-space:pre-wrap}
+.pendency-form{display:grid;grid-template-columns:1fr 190px auto;gap:.75rem;align-items:end;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);padding:1rem;margin-bottom:1rem}
+.pendency{display:grid;grid-template-columns:1fr auto;gap:.5rem 1rem;padding:1rem 0;border-top:1px solid var(--line)}\n.pendency:first-child{border-top:0}
+.pendency.done .pendency-title{text-decoration:line-through;color:var(--muted)}
+.pendency-controls{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.pendency-controls select{width:auto;min-width:145px}
+.pendency-controls input{width:auto}
+.pendency-meta{font-size:.85rem;color:var(--muted)}
 .sec-title{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 .25rem}
 .muted{color:var(--muted)}
 .small{font-size:.85rem}
@@ -160,8 +169,8 @@ dialog h3{margin:0}
   .project>summary{grid-template-columns:1fr}
   .p-total{grid-column:1;grid-row:auto;text-align:left}
   .p-total .bar{margin-left:0}
-  .new-topic,.t-edit{grid-template-columns:1fr}
-  .topic{grid-template-columns:1fr}
+  .new-topic,.t-edit,.pendency-form{grid-template-columns:1fr}
+  .topic,.pendency{grid-template-columns:1fr}
   .t-fig{text-align:left}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -175,7 +184,7 @@ dialog h3{margin:0}
     <button data-view="painel">Painel de controle</button>
     <button data-view="novo">Cadastrar novo projeto</button>
     <button data-view="rel">Relatórios</button>
-    <button data-view="equipe">Equipe</button>
+    <button data-view="equipe">Equipe</button>\n    <button data-view="clientes">Clientes</button>
   </nav>
   <div class="side-foot">
     <div class="small" id="who"></div>
@@ -214,7 +223,7 @@ dialog h3{margin:0}
    com o Supabase. `db` é só o cache local usado para desenhar a tela.
    ===================================================================== */
 const api = window.SC_API;
-let db = {team:[], projects:[], topics:[], entries:[]};
+let db = {team:[], clients:[], projects:[], topics:[], entries:[], pendencies:[]};
 
 /* =====================================================================
    UTILITÁRIOS
@@ -246,6 +255,7 @@ const entriesOf = tid => db.entries.filter(e => e.topicId === tid).sort((a,b)=> 
 const workedTopic = tid => db.entries.filter(e => e.topicId === tid).reduce((s,e)=>s+e.minutes,0);
 const workedProject = pid => topicsOf(pid).reduce((s,t)=>s+workedTopic(t.id),0);
 const estProject = pid => topicsOf(pid).reduce((s,t)=>s+t.estimateMin,0);
+const pendenciesOf = pid => db.pendencies.filter(p=>p.projectId===pid).sort((a,b)=>Number(!!a.deliveredAt)-Number(!!b.deliveredAt) || a.dueDate.localeCompare(b.dueDate));
 
 /* =====================================================================
    ESTADO DA INTERFACE
@@ -322,6 +332,23 @@ function projectHTML(p){
           `<button class="btn" data-act="proj-reopen" data-id="${p.id}">Reativar projeto</button>`}
         <button class="btn danger" data-act="proj-del" data-id="${p.id}">Excluir projeto</button>
       </div>
+
+      <section class="notes-box">
+        <div class="sec-title"><h2>Observações do projeto</h2><span class="muted small">${p.notesUpdatedAt ? `Última edição: ${fmtDate(String(p.notesUpdatedAt).slice(0,10))}` : 'Bloco de notas do projeto'}</span></div>
+        <form class="project-notes" data-pid="${p.id}">
+          <textarea name="notes" aria-label="Observações do projeto" placeholder="Registre aqui informações importantes, decisões e anotações do projeto...">${esc(p.notes || '')}</textarea>
+          <div style="display:flex;justify-content:flex-end;margin-top:.6rem"><button class="btn primary" type="submit">Salvar observações</button></div>
+        </form>
+      </section>
+
+      <h2>Pendências</h2>
+      ${isActive ? `
+      <form class="pendency-form" data-pid="${p.id}">
+        <div><label>Descrição da pendência</label><input name="desc" required maxlength="500" autocomplete="off" placeholder="O que precisa ser entregue?"></div>
+        <div><label>Data prevista para entrega</label><input type="date" name="dueDate" required></div>
+        <button class="btn primary" type="submit">Adicionar</button>
+      </form>` : ''}
+      ${pendenciesOf(p.id).length ? `<ul class="topics">${pendenciesOf(p.id).map(pen => pendencyHTML(pen, isActive)).join('')}</ul>` : `<div class="empty">Nenhuma pendência cadastrada.</div>`}
 
       ${isActive ? `
       <h2>Incluir novo tópico</h2>
@@ -402,14 +429,13 @@ function topicHTML(t){
 }
 
 function viewNovo(){
-  const clients = [...new Set(db.projects.map(p=>p.client))].sort();
   return `
     <h1>Cadastrar novo projeto</h1>
     <p class="lead">Depois de criar, adicione os tópicos dentro do projeto no painel.</p>
     <form class="card pad" id="new-project" style="max-width:640px;display:grid;gap:1rem">
       <div><label for="np-name">Nome do projeto</label><input id="np-name" name="name" required maxlength="160" autocomplete="off"></div>
-      <div><label for="np-client">Cliente</label><input id="np-client" name="client" list="clients" required maxlength="120" autocomplete="off">
-        <datalist id="clients">${clients.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+      <div><label for="np-client">Cliente cadastrado</label><select id="np-client" name="client" required>${db.clients.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select>
+        ${db.clients.length ? '' : '<p class="muted small">Cadastre um cliente na seção Clientes antes de criar um projeto.</p>'}</div>
       <div><label for="np-owner">Responsável</label><select id="np-owner" name="owner">${db.team.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
       <div><button class="btn primary" type="submit">Criar projeto</button></div>
     </form>`;
@@ -489,6 +515,38 @@ function viewEquipe(){
     </div>`;
 }
 
+function viewClientes(){
+  return `
+    <h1>Clientes</h1>
+    <p class="lead">Cadastre e mantenha a lista de clientes disponível para vincular aos projetos.</p>
+    <div class="card pad" style="max-width:620px;margin-bottom:1.5rem">
+      <form id="new-client" style="display:flex;gap:.5rem">
+        <input name="name" placeholder="Nome do cliente" required maxlength="120" autocomplete="off" aria-label="Nome do cliente">
+        <button class="btn primary" type="submit">Adicionar cliente</button>
+      </form>
+      <ul style="list-style:none;padding:0;margin:1rem 0 0">
+        ${db.clients.map(c=>`<li style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem 0;border-bottom:1px solid var(--line)">
+          <span>${esc(c)}</span><button class="link danger" data-act="client-del" data-name="${esc(c)}">Remover</button></li>`).join('') || '<li class="empty">Nenhum cliente cadastrado.</li>'}
+      </ul>
+    </div>`;
+}
+
+function pendencyHTML(p, editable){
+  const delivered = !!p.deliveredAt;
+  return `<li class="pendency ${delivered?'done':''}" data-pendid="${p.id}">
+    <div>
+      <div class="pendency-title"><b>${esc(p.description)}</b> ${delivered?'<span class="badge done">Entregue</span>':'<span class="badge">Pendente</span>'}</div>
+      <div class="pendency-meta">Prevista: ${fmtDate(p.dueDate)} · ${delivered?`Entregue em: ${fmtDate(p.deliveredAt)}`:'Ainda não entregue'}</div>
+    </div>
+    <div class="pendency-controls">
+      ${editable ? `<label style="display:flex;align-items:center;gap:.4rem;margin:0"><input type="checkbox" data-act="pendency-delivered" data-id="${p.id}" ${delivered?'checked':''} style="width:auto;min-height:0"> Entregue</label>
+      ${delivered?`<span class="small">Data real: ${fmtDate(p.deliveredAt)}</span>`:''}
+      <button class="link" data-act="pendency-edit" data-id="${p.id}">Editar</button>
+      <button class="link danger" data-act="pendency-del" data-id="${p.id}">Excluir</button>` : ''}
+    </div>
+  </li>`;
+}
+
 function viewLogin(){
   return `
     <div class="card pad login">
@@ -513,7 +571,7 @@ function viewSetup(){
 
 function render(){
   document.querySelectorAll('.nav button').forEach(b => b.setAttribute('aria-current', b.dataset.view===ui.view ? 'page' : 'false'));
-  $('#main').innerHTML = ({painel:viewPainel, novo:viewNovo, rel:viewRel, equipe:viewEquipe, login:viewLogin, setup:viewSetup})[ui.view]();
+  $('#main').innerHTML = ({painel:viewPainel, novo:viewNovo, rel:viewRel, equipe:viewEquipe, clientes:viewClientes, login:viewLogin, setup:viewSetup})[ui.view]();
 }
 
 /* =====================================================================
@@ -588,7 +646,16 @@ $('#main').addEventListener('change', e => {
   const fl = e.target.dataset.filter;
   if(fl){ ui.f[fl] = e.target.value; render(); return; }
   const r = e.target.dataset.rel;
-  if(r){ ui.rel[r] = e.target.value; render(); }
+  if(r){ ui.rel[r] = e.target.value; render(); return; }
+  if(e.target.matches('input[data-act="pendency-delivered"]')){
+    const id = e.target.dataset.id;
+    const deliveredAt = e.target.checked ? todayISO() : null;
+    run(async () => {
+      const row = await api.pendencies.update(id, {deliveredAt});
+      Object.assign(db.pendencies.find(p=>p.id===id), row);
+      return deliveredAt ? `Pendência marcada como entregue em ${fmtDate(deliveredAt)}.` : 'Entrega desmarcada.';
+    });
+  }
 });
 
 $('#main').addEventListener('submit', async e => {
@@ -618,7 +685,8 @@ $('#main').addEventListener('submit', async e => {
   }
 
   if(form.id==='new-project'){
-    const data = {name:form.name.value.trim(), client:form.client.value.trim(), owner:form.owner.value, createdAt:todayISO()};
+    if(!db.clients.length){ toast('Cadastre um cliente antes de criar um projeto.'); return; }
+    const data = {name:form.name.value.trim(), client:form.client.value, owner:form.owner.value, createdAt:todayISO()};
     run(async () => {
       const p = await api.projects.create(data);
       db.projects.push(p); ui.open.add(p.id);
@@ -631,6 +699,34 @@ $('#main').addEventListener('submit', async e => {
     const n = form.name.value.trim();
     if(db.team.includes(n)){ toast('Essa pessoa já está na equipe.'); return; }
     run(async () => { await api.team.add(n); db.team.push(n); db.team.sort((a,b)=>a.localeCompare(b,'pt-BR')); });
+  }
+
+  if(form.id==='new-client'){
+    const n = form.name.value.trim();
+    if(db.clients.some(c=>c.toLocaleLowerCase('pt-BR')===n.toLocaleLowerCase('pt-BR'))){ toast('Esse cliente já está cadastrado.'); return; }
+    run(async () => { await api.clients.add(n); db.clients.push(n); db.clients.sort((a,b)=>a.localeCompare(b,'pt-BR')); return 'Cliente cadastrado.'; });
+  }
+
+  if(form.classList.contains('project-notes')){
+    const pid = form.dataset.pid;
+    const notes = form.notes.value;
+    run(async () => {
+      Object.assign(db.projects.find(p=>p.id===pid), await api.projects.updateNotes(pid, notes));
+      ui.open.add(pid);
+      return 'Observações salvas.';
+    });
+  }
+
+  if(form.classList.contains('pendency-form')){
+    const pid = form.dataset.pid;
+    const description = form.desc.value.trim();
+    const dueDate = form.dueDate.value;
+    if(!description || !dueDate){ toast('Informe a descrição e a data prevista de entrega.'); return; }
+    run(async () => {
+      db.pendencies.push(await api.pendencies.create(pid, {description, dueDate, createdAt:todayISO()}));
+      ui.open.add(pid);
+      return 'Pendência adicionada.';
+    });
   }
 });
 
@@ -698,7 +794,7 @@ $('#main').addEventListener('click', e => {
           await api.projects.remove(id);
           db.entries = db.entries.filter(x=>!tids.includes(x.topicId));
           db.topics = db.topics.filter(t=>t.projectId!==id);
-          db.projects = db.projects.filter(p=>p.id!==id);
+          db.projects = db.projects.filter(p=>p.id!==id); db.pendencies = db.pendencies.filter(p=>p.projectId!==id);
         });
       break;
 
@@ -708,6 +804,27 @@ $('#main').addEventListener('click', e => {
       const used = db.projects.some(p=>p.owner===n) || db.topics.some(t=>t.owner===n) || db.entries.some(x=>x.owner===n);
       if(used){ toast(`${n} já aparece em projetos ou lançamentos e não pode ser removido.`); return; }
       run(async () => { await api.team.remove(n); db.team = db.team.filter(m=>m!==n); });
+      break; }
+    case 'client-del': {
+      const n = b.dataset.name;
+      if(db.projects.some(p=>p.client===n)){ toast(`${n} está vinculado a um projeto e não pode ser removido.`); return; }
+      if(confirm(`Remover o cliente ${n}?`))
+        run(async () => { await api.clients.remove(n); db.clients = db.clients.filter(c=>c!==n); return 'Cliente removido.'; });
+      break; }
+    case 'pendency-edit': {
+      const pen = db.pendencies.find(p=>p.id===id);
+      const description = prompt('Descrição da pendência:', pen.description);
+      if(description===null) return;
+      const clean = description.trim();
+      if(!clean){ toast('A descrição não pode ficar vazia.'); return; }
+      const dueDate = prompt('Data prevista de entrega (AAAA-MM-DD):', pen.dueDate);
+      if(dueDate===null) return;
+      if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(dueDate)){ toast('Informe a data no formato AAAA-MM-DD.'); return; }
+      run(async () => { Object.assign(pen, await api.pendencies.update(id, {description:clean, dueDate})); return 'Pendência atualizada.'; });
+      break; }
+    case 'pendency-del': {
+      if(confirm('Excluir esta pendência?'))
+        run(async () => { await api.pendencies.remove(id); db.pendencies = db.pendencies.filter(p=>p.id!==id); return 'Pendência excluída.'; });
       break; }
     case 'logout': logout(); break;
   }
@@ -721,7 +838,7 @@ const setLocked = on => document.body.classList.toggle('locked', on);
 function showLogin(){
   setLocked(true);
   ui.view = 'login'; ui.user = null;
-  db = {team:[], projects:[], topics:[], entries:[]};
+  db = {team:[], clients:[], projects:[], topics:[], entries:[], pendencies:[]};
   render();
 }
 
