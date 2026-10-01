@@ -88,8 +88,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .notes-box{border:1px solid var(--line);border-radius:var(--radius);padding:1rem;margin:0 0 1.5rem;background:var(--surface-2)}
 .notes-box textarea{min-height:150px;resize:vertical;white-space:pre-wrap}
 .pendency-form{display:grid;grid-template-columns:1fr 190px auto;gap:.75rem;align-items:end;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);padding:1rem;margin-bottom:1rem}
-.pendency{display:grid;grid-template-columns:1fr auto;gap:.5rem 1rem;padding:1rem 0;border-top:1px solid var(--line)}
-.pendency:first-child{border-top:0}
+.pendency{display:grid;grid-template-columns:1fr auto;gap:.5rem 1rem;padding:1rem 0;border-top:1px solid var(--line)}\n.pendency:first-child{border-top:0}
 .pendency.done .pendency-title{text-decoration:line-through;color:var(--muted)}
 .pendency-controls{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
 .pendency-controls select{width:auto;min-width:145px}
@@ -221,8 +220,6 @@ dialog h3{margin:0}
 <script>
 /* =====================================================================
    CAMADA DE DADOS
-   Tudo passa por window.SC_API (arquivo supabase-api.js), que conversa
-   com o Supabase. `db` é só o cache local usado para desenhar a tela.
    ===================================================================== */
 const api = window.SC_API;
 let db = {team:[], clients:[], projects:[], topics:[], entries:[], pendencies:[]};
@@ -268,7 +265,7 @@ const ui = {
   open:new Set(), logs:new Set(),
   editing:null,
   dlg:null,
-  rel:{from:'', to:''}
+  rel:{from:'', to:'', client:'', owner:'', status:''}
 };
 
 const STATUS = {active:'Ativo', done:'Concluído', archived:'Arquivado'};
@@ -444,27 +441,66 @@ function viewNovo(){
 }
 
 function viewRel(){
-  const {from,to} = ui.rel;
+  const {from, to, client, owner, status} = ui.rel;
   const inRange = d => (!from || d>=from) && (!to || d<=to);
-  const entries = db.entries.filter(e => inRange(e.date));
-  const rows = db.projects.map(p=>{
-    const tids = topicsOf(p.id).map(t=>t.id);
-    const worked = entries.filter(e=>tids.includes(e.topicId)).reduce((s,e)=>s+e.minutes,0);
-    const ts = topicsOf(p.id);
-    return {p, est:estProject(p.id), worked, done:ts.filter(t=>t.status==='done').length, total:ts.length};
-  }).filter(r => r.worked>0 || (!from && !to));
-  const totWorked = rows.reduce((s,r)=>s+r.worked,0), totEst = rows.reduce((s,r)=>s+r.est,0);
+  const opt = (v,l,sel) => `<option value="${esc(v)}" ${sel?'selected':''}>${esc(l)}</option>`;
+  const clients = [...new Set(db.projects.map(p=>p.client))].sort();
 
-  const byOwner = db.team.map(m=>({m, min: entries.filter(e=>e.owner===m).reduce((s,e)=>s+e.minutes,0)}));
-  const completed = db.topics.filter(t=>t.status==='done' && inRange(t.completedAt||''));
+  // Filtragem de projetos
+  const filteredProjects = db.projects.filter(p =>
+    (!client || p.client === client) &&
+    (!status || p.status === status) &&
+    (!owner || p.owner === owner || topicsOf(p.id).some(t => t.owner === owner))
+  );
+
+  // Filtra entradas de horas pelo período e pelo responsável (se selecionado)
+  const entries = db.entries.filter(e => inRange(e.date) && (!owner || e.owner === owner));
+
+  const rows = filteredProjects.map(p => {
+    const ts = topicsOf(p.id);
+    const tids = ts.map(t => t.id);
+    const worked = entries.filter(e => tids.includes(e.topicId)).reduce((s,e) => s + e.minutes, 0);
+    return {p, est: estProject(p.id), worked, done: ts.filter(t => t.status==='done').length, total: ts.length};
+  }).filter(r => r.worked > 0 || (!from && !to));
+
+  const totWorked = rows.reduce((s,r) => s + r.worked, 0);
+  const totEst = rows.reduce((s,r) => s + r.est, 0);
+
+  // Filtragem da tabela por responsável
+  const teamList = owner ? db.team.filter(m => m === owner) : db.team;
+  const byOwner = teamList.map(m => ({
+    m,
+    min: entries.filter(e => e.owner === m).reduce((s,e) => s + e.minutes, 0)
+  }));
+
+  // Filtragem de tópicos concluídos
+  const completed = db.topics.filter(t => {
+    const proj = db.projects.find(p => p.id === t.projectId);
+    if (!proj) return false;
+    const matchProjFilters = (!client || proj.client === client) &&
+                             (!status || proj.status === status) &&
+                             (!owner || t.owner === owner || proj.owner === owner);
+    return t.status === 'done' && inRange(t.completedAt || '') && matchProjFilters;
+  });
 
   return `
     <h1>Relatórios</h1>
     <p class="lead">Horas lançadas por projeto, por pessoa e fechamento dos tópicos concluídos.</p>
-    <div class="card pad" style="margin-bottom:1rem;display:grid;grid-template-columns:1fr 1fr auto;gap:1rem;align-items:end;max-width:640px">
-      <div><label for="r-from">De</label><input type="date" id="r-from" data-rel="from" value="${from}"></div>
-      <div><label for="r-to">Até</label><input type="date" id="r-to" data-rel="to" value="${to}"></div>
-      <button class="btn" data-act="rel-clear">Limpar período</button>
+    
+    <div class="card pad" style="margin-bottom:1.25rem">
+      <div class="filters" style="margin-bottom:1rem">
+        <div><label for="r-client">Cliente</label>
+          <select id="r-client" data-rel="client">${opt('','Todos',!client)}${clients.map(c=>opt(c,c,client===c)).join('')}</select></div>
+        <div><label for="r-owner">Responsável</label>
+          <select id="r-owner" data-rel="owner">${opt('','Todos',!owner)}${db.team.map(c=>opt(c,c,owner===c)).join('')}</select></div>
+        <div><label for="r-status">Status</label>
+          <select id="r-status" data-rel="status">${opt('','Todos',!status)}${Object.entries(STATUS).map(([k,v])=>opt(k,v,status===k)).join('')}</select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:1rem;align-items:end">
+        <div><label for="r-from">De</label><input type="date" id="r-from" data-rel="from" value="${from}"></div>
+        <div><label for="r-to">Até</label><input type="date" id="r-to" data-rel="to" value="${to}"></div>
+        <button class="btn" data-act="rel-clear">Limpar filtros</button>
+      </div>
     </div>
 
     <div class="card scroll" style="margin-bottom:1rem">
@@ -474,7 +510,7 @@ function viewRel(){
           <tr><td>${esc(r.p.name)}<div class="code">${esc(r.p.code)}</div></td><td>${esc(r.p.client)}</td>
           <td class="r">${fmtH(r.est)}</td><td class="r"><b>${fmtH(r.worked)}</b></td>
           <td class="r ${r.worked>r.est?'over-txt':''}">${(from||to)?'—':fmtDiff(r.worked-r.est)}</td>
-          <td class="r">${r.done}/${r.total}</td></tr>`).join('') || `<tr><td colspan="6" class="empty">Sem lançamentos no período.</td></tr>`}
+          <td class="r">${r.done}/${r.total}</td></tr>`).join('') || `<tr><td colspan="6" class="empty">Sem lançamentos com os filtros selecionados.</td></tr>`}
         </tbody>
         <tfoot><tr><td colspan="2">Total geral</td><td class="r">${fmtH(totEst)}</td><td class="r">${fmtH(totWorked)}</td><td></td><td></td></tr></tfoot>
       </table>
@@ -490,7 +526,7 @@ function viewRel(){
       <div class="card scroll">
         <table class="data num">
           <thead><tr><th>Tópico concluído</th><th class="r">Estimado</th><th class="r">Total final</th></tr></thead>
-          <tbody>${completed.map(t=>`<tr><td>${esc(t.description)}<div class="code">${fmtDate(t.completedAt)}</div></td><td class="r">${fmtH(t.estimateMin)}</td><td class="r ${t.finalMinutes>t.estimateMin?'over-txt':'ok-txt'}"><b>${fmtH(t.finalMinutes)}</b></td></tr>`).join('') || `<tr><td colspan="3" class="empty">Nenhum tópico concluído no período.</td></tr>`}</tbody>
+          <tbody>${completed.map(t=>`<tr><td>${esc(t.description)}<div class="code">${fmtDate(t.completedAt)}</div></td><td class="r">${fmtH(t.estimateMin)}</td><td class="r ${t.finalMinutes>t.estimateMin?'over-txt':'ok-txt'}"><b>${fmtH(t.finalMinutes)}</b></td></tr>`).join('') || `<tr><td colspan="3" class="empty">Nenhum tópico concluído no período/filtros.</td></tr>`}</tbody>
         </table>
       </div>
     </div>`;
@@ -594,8 +630,6 @@ function openHours(topicId, entryId){
 }
 
 /* ---------- execução de ações com Supabase ---------- */
-// Roda a ação, redesenha a tela e mostra a mensagem retornada.
-// Se der erro, a tela NÃO é redesenhada (o que a pessoa digitou fica).
 async function run(fn){
   if(ui.busy) return;
   ui.busy = true;
@@ -765,7 +799,7 @@ $('#main').addEventListener('click', e => {
       const t = topic();
       if(workedTopic(t.id)===0 && !confirm('Nenhuma hora foi lançada neste tópico. Concluir mesmo assim?')) return;
       run(async () => {
-        const row = await api.topics.complete(t.id, todayISO());   // o banco soma e grava o total final
+        const row = await api.topics.complete(t.id, todayISO());
         Object.assign(t, row);
         return `Tópico concluído. Total utilizado: ${fmtH(row.finalMinutes)}.`;
       });
@@ -800,7 +834,7 @@ $('#main').addEventListener('click', e => {
         });
       break;
 
-    case 'rel-clear': ui.rel = {from:'', to:''}; render(); break;
+    case 'rel-clear': ui.rel = {from:'', to:'', client:'', owner:'', status:''}; render(); break;
     case 'member-del': {
       const n = b.dataset.name;
       const used = db.projects.some(p=>p.owner===n) || db.topics.some(t=>t.owner===n) || db.entries.some(x=>x.owner===n);
