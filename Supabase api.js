@@ -10,8 +10,8 @@
    2) Carregue este arquivo depois do supabase-js (ver suporte-control.html).
    ===================================================================== */
 (function () {
-  const SUPABASE_URL = 'https://SEU-PROJETO.supabase.co';
-  const SUPABASE_ANON_KEY = 'SUA-CHAVE-ANON-PUBLICA';
+  const SUPABASE_URL = 'https://sextezshzlcbvyckvjgu.supabase.co/rest/v1/';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNleHRlenNoemxjYnZ5Y2t2amd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4NjAzNTUsImV4cCI6MjEwNjQzNjM1NX0.P4as9IbWMkUOsQuQOdxQA0D-SgCtATcv07Tq3r2Hx3A';
 
   const configured =
     !!window.supabase &&
