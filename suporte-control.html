@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suporte Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#edf0f4; --surface:#ffffff; --surface-2:#f6f8fb; --ink:#152033; --muted:#5a6679;
+  --line:#d9dfe8; --accent:#22448f; --accent-ink:#ffffff; --accent-soft:#e3eaf9;
+  --done:#2b7a58; --done-soft:#e2f2ea; --over:#b3501b; --over-soft:#fbeadf;
+  --side:#14203a; --side-ink:#dbe3f3; --side-muted:#8e9bb8;
+  --radius:8px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0e131b; --surface:#161d28; --surface-2:#1b2431; --ink:#e5eaf2; --muted:#98a4b8;
+    --line:#2a3545; --accent:#86a8ff; --accent-ink:#0e131b; --accent-soft:#1e2c4d;
+    --done:#58c394; --done-soft:#17342a; --over:#f09a62; --over-soft:#3b2517;
+    --side:#0a0e15; --side-ink:#dbe3f3; --side-muted:#7d8aa6;
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:grid;grid-template-columns:232px 1fr}
+button,input,select,textarea{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums}
+
+/* sidebar */
+.side{background:var(--side);color:var(--side-ink);padding:1.5rem 1rem;position:sticky;top:0;height:100vh}
+.brand{font-weight:700;font-size:1.15rem;margin:0 .5rem 1.75rem;letter-spacing:.01em}
+.brand small{display:block;font-weight:400;color:var(--side-muted);font-size:.8rem;margin-top:.1rem}
+.nav{display:flex;flex-direction:column;gap:.15rem}
+.nav button{background:none;border:0;text-align:left;padding:.6rem .75rem;border-radius:var(--radius);color:var(--side-ink);cursor:pointer}
+.nav button:hover{background:rgba(255,255,255,.07)}
+.nav button[aria-current="page"]{background:rgba(255,255,255,.14);font-weight:600}
+
+/* main */
+main{padding:2rem clamp(1rem,3vw,2.75rem) 4rem;max-width:1120px;width:100%}
+h1{font-size:1.65rem;margin:0 0 .25rem;letter-spacing:-.01em}
+h2{font-size:1.05rem;margin:0 0 .75rem}
+.lead{color:var(--muted);margin:0 0 1.5rem}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+.pad{padding:1.25rem}
+
+/* controls */
+label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:.3rem}
+input,select,textarea{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:.55rem .7rem;min-height:2.5rem}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;border:1px solid var(--line);background:var(--surface);padding:.45rem .85rem;border-radius:6px;cursor:pointer;min-height:2.25rem;white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ok{border-color:var(--done);color:var(--done)}
+.btn.danger{color:var(--over)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.filters{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.25rem}
+
+/* projects */
+.project{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:.75rem}
+.project>summary{list-style:none;cursor:pointer;padding:1rem 1.25rem;display:grid;grid-template-columns:1fr minmax(220px,300px);gap:.25rem 1.5rem;align-items:center}
+.project>summary::-webkit-details-marker{display:none}
+.project>summary::before{content:"";position:absolute}
+.project[open]>summary{border-bottom:1px solid var(--line)}
+.p-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:.5rem .75rem}
+.code{font-size:.8rem;color:var(--muted)}
+.p-name{font-weight:600;font-size:1.05rem}
+.p-sub{color:var(--muted);font-size:.87rem;grid-column:1}
+.p-total{grid-column:2;grid-row:1 / span 2;text-align:right}
+.badge{font-size:.75rem;padding:.1rem .5rem;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-weight:600}
+.badge.done{background:var(--done-soft);color:var(--done)}
+.badge.archived{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.p-body{padding:1.25rem}
+.p-actions{display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap;margin-bottom:1.25rem}
+.new-topic{display:grid;grid-template-columns:1fr 180px 190px auto;gap:.75rem;align-items:end;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);padding:1rem;margin-bottom:1.5rem}
+.sec-title{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 .25rem}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+
+/* bar */
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:.35rem}
+.bar>i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.bar.over>i{background:var(--over)}
+.bar.done>i{background:var(--done)}
+.p-total .bar{margin-left:auto}
+
+/* topics */
+.topics{list-style:none;margin:0;padding:0}
+.topic{display:grid;grid-template-columns:1fr auto;gap:.5rem 1.5rem;padding:1.1rem 0;border-top:1px solid var(--line)}
+.topic:first-child{border-top:0}
+.t-title{font-weight:600}
+.topic.done .t-title{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.t-meta{color:var(--muted);font-size:.85rem;margin-top:.1rem}
+.t-fig{display:flex;gap:1.5rem;text-align:right}
+.t-fig div span{display:block;font-size:.75rem;color:var(--muted)}
+.t-fig div b{font-size:1.1rem;font-weight:600}
+.t-fig .over b{color:var(--over)}
+.t-fig .final b{color:var(--done)}
+.t-bar{grid-column:1/-1}
+.t-bar .legend{display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);margin-top:.3rem}
+.t-act{grid-column:1/-1;display:flex;gap:.5rem;flex-wrap:wrap}
+.t-edit{grid-column:1/-1;display:grid;grid-template-columns:1fr 180px 170px auto auto;gap:.75rem;align-items:end}
+.logs{grid-column:1/-1}
+.logs>summary{cursor:pointer;font-size:.88rem;color:var(--accent);font-weight:500;list-style:none}
+.logs>summary::-webkit-details-marker{display:none}
+.logs>summary::before{content:"▸ ";display:inline-block;transition:transform .15s}
+.logs[open]>summary::before{content:"▾ "}
+.log-table{width:100%;border-collapse:collapse;margin-top:.6rem;font-size:.9rem}
+.log-table th{font-weight:500;color:var(--muted);text-align:left;font-size:.8rem;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
+.log-table td{padding:.45rem .5rem;border-bottom:1px solid var(--line)}
+.log-table td:last-child{text-align:right;white-space:nowrap}
+.link{background:none;border:0;color:var(--accent);cursor:pointer;padding:.1rem .3rem;text-decoration:underline}
+.link.danger{color:var(--over)}
+.proj-foot{display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:flex-end;align-items:baseline;border-top:2px solid var(--ink);margin-top:.75rem;padding-top:.9rem}
+.proj-foot span{color:var(--muted);font-size:.85rem}
+.proj-foot b{font-size:1.2rem;margin-left:.35rem}
+.proj-foot .over{color:var(--over)}
+
+/* tables */
+table.data{width:100%;border-collapse:collapse}
+table.data th{font-size:.8rem;color:var(--muted);font-weight:500;text-align:left;padding:.6rem .75rem;border-bottom:1px solid var(--line)}
+table.data td{padding:.65rem .75rem;border-bottom:1px solid var(--line)}
+table.data .r{text-align:right}
+table.data tfoot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:0}
+.over-txt{color:var(--over)}
+.ok-txt{color:var(--done)}
+.scroll{overflow-x:auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.empty{padding:2.5rem 1rem;text-align:center;color:var(--muted)}
+
+/* dialog + toast */
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:0;width:min(460px,92vw)}
+dialog::backdrop{background:rgba(10,15,25,.55)}
+dialog form{padding:1.4rem;display:grid;gap:.9rem}
+dialog h3{margin:0}
+.dlg-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.dlg-act{display:flex;justify-content:flex-end;gap:.5rem;margin-top:.25rem}
+.dlg-info{background:var(--surface-2);border-radius:6px;padding:.6rem .8rem;font-size:.88rem;color:var(--muted)}
+#toast{position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:.65rem 1.1rem;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:90vw}
+#toast.show{opacity:1}
+
+@media (max-width:860px){
+  body{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .side{position:static;height:auto;padding:1rem}
+  .brand{margin-bottom:.75rem}
+  .nav{flex-direction:row;flex-wrap:wrap}
+  .filters,.grid2{grid-template-columns:1fr}
+  .project>summary{grid-template-columns:1fr}
+  .p-total{grid-column:1;grid-row:auto;text-align:left}
+  .p-total .bar{margin-left:0}
+  .new-topic,.t-edit{grid-template-columns:1fr}
+  .topic{grid-template-columns:1fr}
+  .t-fig{text-align:left}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<aside class="side">
+  <div class="brand">Suporte Control<small>Projetos e horas</small></div>
+  <nav class="nav" aria-label="Navegação">
+    <button data-view="painel">Painel de controle</button>
+    <button data-view="novo">Cadastrar novo projeto</button>
+    <button data-view="rel">Relatórios</button>
+    <button data-view="equipe">Equipe e dados</button>
+  </nav>
+</aside>
+
+<main id="main"></main>
+
+<dialog id="dlg" aria-labelledby="dlg-title">
+  <form id="dlg-form">
+    <h3 id="dlg-title">Lançar horas</h3>
+    <div class="dlg-info" id="dlg-info"></div>
+    <div class="dlg-row">
+      <div><label for="dlg-date">Data trabalhada</label><input type="date" id="dlg-date" required></div>
+      <div><label for="dlg-hours">Horas (HH:MM)</label><input type="text" id="dlg-hours" inputmode="text" placeholder="ex.: 2:30" autocomplete="off" required></div>
+    </div>
+    <div><label for="dlg-who">Quem trabalhou</label><select id="dlg-who"></select></div>
+    <div><label for="dlg-note">Observação (opcional)</label><input type="text" id="dlg-note" maxlength="200" autocomplete="off"></div>
+    <div class="dlg-act">
+      <button type="button" class="btn" id="dlg-cancel">Cancelar</button>
+      <button type="submit" class="btn primary">Salvar lançamento</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* =====================================================================
+   CAMADA DE DADOS
+   Hoje tudo fica no localStorage do navegador. Quando o back em Java
+   estiver pronto, troque apenas o conteúdo de `store.load` e `store.save`
+   por chamadas fetch() (ou crie um endpoint por ação).
+
+   Modelo (espelha as tabelas que você vai criar):
+   project : { id, code, name, client, owner, status: active|done|archived, createdAt }
+   topic   : { id, projectId, description, owner, estimateMin, createdAt,
+               status: open|done, completedAt, finalMinutes }
+   entry   : { id, topicId, date (AAAA-MM-DD), minutes, owner, note }
+   ===================================================================== */
+const KEY = 'suporte-control-v1';
+const store = {
+  load(){ try{ const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; }catch(e){ return null; } },
+  save(d){ try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch(e){} }
+};
+
+function seed(){
+  return {
+    team:['Cleilton','Patrick'],
+    projects:[
+      {id:'p1',code:'PRJ-2025-37QO',name:"Alteração nas API's",client:'Cruzeiro do Sul',owner:'Patrick',status:'active',createdAt:'2025-12-29'},
+      {id:'p2',code:'PRJ-2026-D91S',name:'Chamador ativo',client:'DPE - AC',owner:'Patrick',status:'active',createdAt:'2026-01-12'}
+    ],
+    topics:[
+      {id:'t1',projectId:'p1',description:"Testar API's",owner:'Patrick',estimateMin:60,createdAt:'2025-12-29',status:'open',completedAt:null,finalMinutes:null},
+      {id:'t2',projectId:'p1',description:'Mapear endpoints alterados',owner:'Cleilton',estimateMin:180,createdAt:'2025-12-29',status:'done',completedAt:'2025-12-30',finalMinutes:210},
+      {id:'t3',projectId:'p2',description:'Configurar disparo ativo',owner:'Patrick',estimateMin:240,createdAt:'2026-01-12',status:'open',completedAt:null,finalMinutes:null}
+    ],
+    entries:[
+      {id:'e1',topicId:'t1',date:'2025-12-29',minutes:45,owner:'Patrick',note:''},
+      {id:'e2',topicId:'t1',date:'2025-12-30',minutes:27,owner:'Patrick',note:'Testes de autenticação'},
+      {id:'e3',topicId:'t2',date:'2025-12-29',minutes:120,owner:'Cleilton',note:''},
+      {id:'e4',topicId:'t2',date:'2025-12-30',minutes:90,owner:'Cleilton',note:'Revisão com o cliente'},
+      {id:'e5',topicId:'t3',date:'2026-01-13',minutes:150,owner:'Patrick',note:''}
+    ]
+  };
+}
+
+let db = store.load() || seed();
+const save = () => store.save(db);
+
+/* =====================================================================
+   UTILITÁRIOS
+   ===================================================================== */
+const $ = (s, r=document) => r.querySelector(s);
+const pad = n => String(n).padStart(2,'0');
+const uid = () => Math.random().toString(36).slice(2,10);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const fmtDate = iso => iso ? iso.split('-').reverse().join('/') : '—';
+const fmtH = min => { const m = Math.max(0, Math.round(min)); return `${pad(Math.floor(m/60))}:${pad(m%60)}`; };
+const fmtDiff = min => (min>0?'+':min<0?'−':'') + fmtH(Math.abs(min));
+function parseH(str){
+  const s = String(str||'').trim();
+  let m = s.match(/^(\d+):(\d{1,2})$/);
+  if(m){ const mm = +m[2]; if(mm>59) return null; return +m[1]*60 + mm; }
+  m = s.match(/^(\d+)([.,]\d+)?$/);
+  if(m) return Math.round(parseFloat(s.replace(',','.'))*60);
+  return null;
+}
+function newCode(){
+  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
+  let s = ''; for(let i=0;i<4;i++) s += c[Math.floor(Math.random()*c.length)];
+  return `PRJ-${new Date().getFullYear()}-${s}`;
+}
+let toastTimer;
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+/* cálculos */
+const topicsOf = pid => db.topics.filter(t => t.projectId === pid);
+const entriesOf = tid => db.entries.filter(e => e.topicId === tid).sort((a,b)=> b.date.localeCompare(a.date));
+const workedTopic = tid => db.entries.filter(e => e.topicId === tid).reduce((s,e)=>s+e.minutes,0);
+const workedProject = pid => topicsOf(pid).reduce((s,t)=>s+workedTopic(t.id),0);
+const estProject = pid => topicsOf(pid).reduce((s,t)=>s+t.estimateMin,0);
+
+/* =====================================================================
+   ESTADO DA INTERFACE
+   ===================================================================== */
+const ui = {
+  view:'painel',
+  f:{client:'', owner:'', status:'active'},
+  open:new Set(), logs:new Set(),
+  editing:null,
+  dlg:null,
+  rel:{from:'', to:''}
+};
+
+const STATUS = {active:'Ativo', done:'Concluído', archived:'Arquivado'};
+
+/* =====================================================================
+   VIEWS
+   ===================================================================== */
+function bar(worked, est, done){
+  const pct = est>0 ? Math.min(worked/est,1)*100 : (worked>0?100:0);
+  const cls = worked>est && est>0 ? 'over' : (done ? 'done' : '');
+  return `<div class="bar ${cls}" role="img" aria-label="${fmtH(worked)} de ${fmtH(est)} estimadas"><i style="width:${pct.toFixed(1)}%"></i></div>`;
+}
+
+function viewPainel(){
+  const f = ui.f;
+  const clients = [...new Set(db.projects.map(p=>p.client))].sort();
+  const list = db.projects.filter(p =>
+    (!f.client || p.client===f.client) &&
+    (!f.status || p.status===f.status) &&
+    (!f.owner || p.owner===f.owner || topicsOf(p.id).some(t=>t.owner===f.owner))
+  );
+  const opt = (v,l,sel) => `<option value="${esc(v)}" ${sel?'selected':''}>${esc(l)}</option>`;
+  return `
+    <h1>Gestão de atividades</h1>
+    <p class="lead">Projetos, tópicos e horas trabalhadas em cada um.</p>
+    <div class="filters">
+      <div><label for="f-client">Cliente</label>
+        <select id="f-client" data-filter="client">${opt('','Todos',!f.client)}${clients.map(c=>opt(c,c,f.client===c)).join('')}</select></div>
+      <div><label for="f-owner">Responsável</label>
+        <select id="f-owner" data-filter="owner">${opt('','Todos',!f.owner)}${db.team.map(c=>opt(c,c,f.owner===c)).join('')}</select></div>
+      <div><label for="f-status">Status</label>
+        <select id="f-status" data-filter="status">${opt('','Todos',!f.status)}${Object.entries(STATUS).map(([k,v])=>opt(k,v,f.status===k)).join('')}</select></div>
+    </div>
+    ${list.length ? list.map(projectHTML).join('') :
+      `<div class="card empty">Nenhum projeto com esses filtros. <br>Use “Cadastrar novo projeto” para criar o primeiro.</div>`}
+  `;
+}
+
+function projectHTML(p){
+  const worked = workedProject(p.id), est = estProject(p.id);
+  const over = est>0 && worked>est;
+  const isActive = p.status==='active';
+  const topics = topicsOf(p.id).sort((a,b)=> (a.status===b.status ? a.createdAt.localeCompare(b.createdAt) : a.status==='open'?-1:1));
+  return `
+  <details class="project" data-pid="${p.id}" ${ui.open.has(p.id)?'open':''}>
+    <summary>
+      <div class="p-head">
+        <span class="code num">${esc(p.code)}</span>
+        <span class="p-name">${esc(p.name)}</span>
+        <span class="badge ${p.status}">${STATUS[p.status]}</span>
+      </div>
+      <div class="p-sub">${esc(p.client)} · Resp: ${esc(p.owner)} · ${topics.length} tópico${topics.length===1?'':'s'}</div>
+      <div class="p-total">
+        <span class="num"><b>${fmtH(worked)}</b> <span class="muted small">de ${fmtH(est)} estimadas</span></span>
+        ${bar(worked, est, p.status==='done')}
+      </div>
+    </summary>
+    <div class="p-body">
+      <div class="p-actions">
+        ${isActive ? `
+          <button class="btn ok" data-act="proj-done" data-id="${p.id}">Concluir projeto</button>
+          <button class="btn" data-act="proj-archive" data-id="${p.id}">Arquivar</button>` :
+          `<button class="btn" data-act="proj-reopen" data-id="${p.id}">Reativar projeto</button>`}
+        <button class="btn danger" data-act="proj-del" data-id="${p.id}">Excluir projeto</button>
+      </div>
+
+      ${isActive ? `
+      <h2>Incluir novo tópico</h2>
+      <form class="new-topic" data-pid="${p.id}">
+        <div><label>Descrição</label><input name="desc" required maxlength="200" autocomplete="off"></div>
+        <div><label>Responsável</label><select name="owner">${db.team.map(m=>`<option ${m===p.owner?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
+        <div><label>Estimativa (HH:MM)</label><input name="est" placeholder="ex.: 2:30" value="" autocomplete="off" required></div>
+        <button class="btn primary" type="submit">Adicionar</button>
+      </form>` : ''}
+
+      <div class="sec-title"><h2>Tópicos</h2></div>
+      ${topics.length ? `<ul class="topics">${topics.map(topicHTML).join('')}</ul>` : `<div class="empty">Nenhum tópico ainda.</div>`}
+
+      <div class="proj-foot num">
+        <span>Estimado<b>${fmtH(est)}</b></span>
+        <span>Total utilizado no projeto<b>${fmtH(worked)}</b></span>
+        <span>Diferença<b class="${over?'over':''}">${fmtDiff(worked-est)}</b></span>
+      </div>
+    </div>
+  </details>`;
+}
+
+function topicHTML(t){
+  const worked = workedTopic(t.id);
+  const done = t.status==='done';
+  const total = done ? t.finalMinutes : worked;
+  const over = t.estimateMin>0 && total>t.estimateMin;
+  const entries = entriesOf(t.id);
+  const proj = db.projects.find(p=>p.id===t.projectId);
+  const locked = proj.status!=='active';
+
+  if(ui.editing===t.id){
+    return `
+    <li class="topic" data-tid="${t.id}">
+      <div class="t-edit">
+        <div><label>Descrição</label><input data-f="desc" value="${esc(t.description)}" maxlength="200"></div>
+        <div><label>Responsável</label><select data-f="owner">${db.team.map(m=>`<option ${m===t.owner?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
+        <div><label>Estimativa (HH:MM)</label><input data-f="est" value="${fmtH(t.estimateMin)}"></div>
+        <button class="btn primary" data-act="topic-save" data-id="${t.id}">Salvar</button>
+        <button class="btn" data-act="topic-cancel">Cancelar</button>
+      </div>
+    </li>`;
+  }
+
+  return `
+  <li class="topic ${done?'done':''}" data-tid="${t.id}">
+    <div>
+      <div class="t-title">${esc(t.description)}</div>
+      <div class="t-meta num">Criado em ${fmtDate(t.createdAt)} · Resp: ${esc(t.owner)}${done?` · Concluído em ${fmtDate(t.completedAt)}`:''}</div>
+    </div>
+    <div class="t-fig num">
+      <div><span>Estimado</span><b>${fmtH(t.estimateMin)}</b></div>
+      <div class="${done?'final':''} ${over?'over':''}"><span>${done?'Total final':'Lançado'}</span><b>${fmtH(total)}</b></div>
+    </div>
+    <div class="t-bar">
+      ${bar(total, t.estimateMin, done)}
+      <div class="legend num"><span>${over?`${fmtH(total-t.estimateMin)} acima da estimativa`:t.estimateMin>0?`${fmtH(Math.max(t.estimateMin-total,0))} restantes`:''}</span><span>${entries.length} lançamento${entries.length===1?'':'s'}</span></div>
+    </div>
+    <div class="t-act">
+      ${done ? `<button class="btn" data-act="topic-reopen" data-id="${t.id}" ${locked?'disabled':''}>Reabrir tópico</button>` : `
+        <button class="btn primary" data-act="hours-add" data-id="${t.id}" ${locked?'disabled':''}>Lançar horas</button>
+        <button class="btn ok" data-act="topic-done" data-id="${t.id}" ${locked?'disabled':''}>Concluir tópico</button>`}
+      <button class="btn" data-act="topic-edit" data-id="${t.id}">Editar</button>
+      <button class="btn danger" data-act="topic-del" data-id="${t.id}">Excluir</button>
+    </div>
+    ${entries.length ? `
+    <details class="logs" data-tid="${t.id}" ${ui.logs.has(t.id)?'open':''}>
+      <summary>Horas lançadas por dia</summary>
+      <table class="log-table num">
+        <thead><tr><th>Data</th><th>Horas</th><th>Quem</th><th>Observação</th><th></th></tr></thead>
+        <tbody>${entries.map(e=>`
+          <tr><td>${fmtDate(e.date)}</td><td>${fmtH(e.minutes)}</td><td>${esc(e.owner)}</td><td>${esc(e.note)}</td>
+          <td>${done?'':`<button class="link" data-act="entry-edit" data-id="${e.id}">Editar</button><button class="link danger" data-act="entry-del" data-id="${e.id}">Remover</button>`}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    </details>` : ''}
+  </li>`;
+}
+
+function viewNovo(){
+  const clients = [...new Set(db.projects.map(p=>p.client))].sort();
+  return `
+    <h1>Cadastrar novo projeto</h1>
+    <p class="lead">Depois de criar, adicione os tópicos dentro do projeto no painel.</p>
+    <form class="card pad" id="new-project" style="max-width:640px;display:grid;gap:1rem">
+      <div><label for="np-name">Nome do projeto</label><input id="np-name" name="name" required maxlength="160" autocomplete="off"></div>
+      <div><label for="np-client">Cliente</label><input id="np-client" name="client" list="clients" required maxlength="120" autocomplete="off">
+        <datalist id="clients">${clients.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+      <div><label for="np-owner">Responsável</label><select id="np-owner" name="owner">${db.team.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
+      <div><button class="btn primary" type="submit">Criar projeto</button></div>
+    </form>`;
+}
+
+function viewRel(){
+  const {from,to} = ui.rel;
+  const inRange = d => (!from || d>=from) && (!to || d<=to);
+  const entries = db.entries.filter(e => inRange(e.date));
+  const rows = db.projects.map(p=>{
+    const tids = topicsOf(p.id).map(t=>t.id);
+    const worked = entries.filter(e=>tids.includes(e.topicId)).reduce((s,e)=>s+e.minutes,0);
+    const ts = topicsOf(p.id);
+    return {p, est:estProject(p.id), worked, done:ts.filter(t=>t.status==='done').length, total:ts.length};
+  }).filter(r => r.worked>0 || (!from && !to));
+  const totWorked = rows.reduce((s,r)=>s+r.worked,0), totEst = rows.reduce((s,r)=>s+r.est,0);
+
+  const byOwner = db.team.map(m=>({m, min: entries.filter(e=>e.owner===m).reduce((s,e)=>s+e.minutes,0)}));
+  const completed = db.topics.filter(t=>t.status==='done' && inRange(t.completedAt||''));
+
+  return `
+    <h1>Relatórios</h1>
+    <p class="lead">Horas lançadas por projeto, por pessoa e fechamento dos tópicos concluídos.</p>
+    <div class="card pad" style="margin-bottom:1rem;display:grid;grid-template-columns:1fr 1fr auto;gap:1rem;align-items:end;max-width:640px">
+      <div><label for="r-from">De</label><input type="date" id="r-from" data-rel="from" value="${from}"></div>
+      <div><label for="r-to">Até</label><input type="date" id="r-to" data-rel="to" value="${to}"></div>
+      <button class="btn" data-act="rel-clear">Limpar período</button>
+    </div>
+
+    <div class="card scroll" style="margin-bottom:1rem">
+      <table class="data num">
+        <thead><tr><th>Projeto</th><th>Cliente</th><th class="r">Estimado</th><th class="r">Horas utilizadas</th><th class="r">Diferença</th><th class="r">Tópicos concluídos</th></tr></thead>
+        <tbody>${rows.map(r=>`
+          <tr><td>${esc(r.p.name)}<div class="code">${esc(r.p.code)}</div></td><td>${esc(r.p.client)}</td>
+          <td class="r">${fmtH(r.est)}</td><td class="r"><b>${fmtH(r.worked)}</b></td>
+          <td class="r ${r.worked>r.est?'over-txt':''}">${(from||to)?'—':fmtDiff(r.worked-r.est)}</td>
+          <td class="r">${r.done}/${r.total}</td></tr>`).join('') || `<tr><td colspan="6" class="empty">Sem lançamentos no período.</td></tr>`}
+        </tbody>
+        <tfoot><tr><td colspan="2">Total geral</td><td class="r">${fmtH(totEst)}</td><td class="r">${fmtH(totWorked)}</td><td></td><td></td></tr></tfoot>
+      </table>
+    </div>
+
+    <div class="grid2">
+      <div class="card scroll">
+        <table class="data num">
+          <thead><tr><th>Responsável</th><th class="r">Horas lançadas</th></tr></thead>
+          <tbody>${byOwner.map(o=>`<tr><td>${esc(o.m)}</td><td class="r">${fmtH(o.min)}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+      <div class="card scroll">
+        <table class="data num">
+          <thead><tr><th>Tópico concluído</th><th class="r">Estimado</th><th class="r">Total final</th></tr></thead>
+          <tbody>${completed.map(t=>`<tr><td>${esc(t.description)}<div class="code">${fmtDate(t.completedAt)}</div></td><td class="r">${fmtH(t.estimateMin)}</td><td class="r ${t.finalMinutes>t.estimateMin?'over-txt':'ok-txt'}"><b>${fmtH(t.finalMinutes)}</b></td></tr>`).join('') || `<tr><td colspan="3" class="empty">Nenhum tópico concluído no período.</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function viewEquipe(){
+  return `
+    <h1>Equipe e dados</h1>
+    <p class="lead">Pessoas que podem ser escolhidas como responsáveis.</p>
+    <div class="card pad" style="max-width:520px;margin-bottom:1.5rem">
+      <ul style="list-style:none;padding:0;margin:0 0 1rem">
+        ${db.team.map(m=>`<li style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--line)">
+          <span>${esc(m)}</span><button class="link danger" data-act="member-del" data-name="${esc(m)}">Remover</button></li>`).join('')}
+      </ul>
+      <form id="new-member" style="display:flex;gap:.5rem">
+        <input name="name" placeholder="Nome da pessoa" required maxlength="60" autocomplete="off" aria-label="Nome da pessoa">
+        <button class="btn primary" type="submit">Adicionar</button>
+      </form>
+    </div>
+    <div class="card pad" style="max-width:520px">
+      <h2>Dados deste protótipo</h2>
+      <p class="muted small">Os dados ficam salvos só neste navegador. Quando o back-end em Java estiver ligado, eles passam a vir do banco.</p>
+      <button class="btn danger" data-act="reset">Restaurar dados de exemplo</button>
+    </div>`;
+}
+
+function render(){
+  document.querySelectorAll('.nav button').forEach(b => b.setAttribute('aria-current', b.dataset.view===ui.view ? 'page' : 'false'));
+  $('#main').innerHTML = ({painel:viewPainel, novo:viewNovo, rel:viewRel, equipe:viewEquipe})[ui.view]();
+}
+
+/* =====================================================================
+   DIÁLOGO DE LANÇAMENTO DE HORAS
+   ===================================================================== */
+function openHours(topicId, entryId){
+  const t = db.topics.find(x=>x.id===topicId);
+  const e = entryId ? db.entries.find(x=>x.id===entryId) : null;
+  ui.dlg = {topicId, entryId:entryId||null};
+  $('#dlg-title').textContent = e ? 'Editar lançamento' : 'Lançar horas';
+  $('#dlg-info').innerHTML = `<b>${esc(t.description)}</b><br><span class="num">Estimado ${fmtH(t.estimateMin)} · Já lançado ${fmtH(workedTopic(t.id))}</span>`;
+  $('#dlg-who').innerHTML = db.team.map(m=>`<option ${m===(e?e.owner:t.owner)?'selected':''}>${esc(m)}</option>`).join('');
+  const d = $('#dlg-date'); d.max = todayISO(); d.value = e ? e.date : todayISO();
+  $('#dlg-hours').value = e ? fmtH(e.minutes) : '';
+  $('#dlg-note').value = e ? e.note : '';
+  $('#dlg').showModal();
+  setTimeout(()=> $('#dlg-hours').focus(), 30);
+}
+
+$('#dlg-cancel').addEventListener('click', ()=> $('#dlg').close());
+$('#dlg-form').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const min = parseH($('#dlg-hours').value);
+  const date = $('#dlg-date').value;
+  if(!date){ toast('Escolha a data trabalhada.'); return; }
+  if(min===null || min<=0 || min>24*60){ toast('Informe as horas como HH:MM, entre 00:01 e 24:00.'); $('#dlg-hours').focus(); return; }
+  const {topicId, entryId} = ui.dlg;
+  const data = {date, minutes:min, owner:$('#dlg-who').value, note:$('#dlg-note').value.trim()};
+  if(entryId){ Object.assign(db.entries.find(x=>x.id===entryId), data); }
+  else { db.entries.push({id:uid(), topicId, ...data}); }
+  const t = db.topics.find(x=>x.id===topicId);
+  ui.logs.add(topicId); ui.open.add(t.projectId);
+  save(); $('#dlg').close(); render();
+  toast(`${fmtH(min)} lançadas em ${fmtDate(date)}.`);
+});
+
+/* =====================================================================
+   EVENTOS
+   ===================================================================== */
+document.querySelector('.nav').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  ui.view = b.dataset.view; render(); window.scrollTo(0,0);
+});
+
+$('#main').addEventListener('toggle', e => {
+  const el = e.target;
+  if(el.classList.contains('project')){ el.open ? ui.open.add(el.dataset.pid) : ui.open.delete(el.dataset.pid); }
+  if(el.classList.contains('logs')){ el.open ? ui.logs.add(el.dataset.tid) : ui.logs.delete(el.dataset.tid); }
+}, true);
+
+$('#main').addEventListener('change', e => {
+  const fl = e.target.dataset.filter;
+  if(fl){ ui.f[fl] = e.target.value; render(); return; }
+  const r = e.target.dataset.rel;
+  if(r){ ui.rel[r] = e.target.value; render(); }
+});
+
+$('#main').addEventListener('submit', e => {
+  e.preventDefault();
+  const form = e.target;
+
+  if(form.classList.contains('new-topic')){
+    const pid = form.dataset.pid;
+    const est = parseH(form.est.value);
+    if(est===null){ toast('Estimativa inválida. Use HH:MM, por exemplo 2:30.'); return; }
+    db.topics.push({id:uid(), projectId:pid, description:form.desc.value.trim(), owner:form.owner.value,
+      estimateMin:est, createdAt:todayISO(), status:'open', completedAt:null, finalMinutes:null});
+    ui.open.add(pid); save(); render(); toast('Tópico adicionado.');
+  }
+
+  if(form.id==='new-project'){
+    const p = {id:uid(), code:newCode(), name:form.name.value.trim(), client:form.client.value.trim(),
+      owner:form.owner.value, status:'active', createdAt:todayISO()};
+    db.projects.push(p); ui.open.add(p.id);
+    ui.f = {client:'', owner:'', status:'active'}; ui.view = 'painel';
+    save(); render(); toast(`Projeto ${p.code} criado.`);
+  }
+
+  if(form.id==='new-member'){
+    const n = form.name.value.trim();
+    if(db.team.includes(n)){ toast('Essa pessoa já está na equipe.'); return; }
+    db.team.push(n); save(); render();
+  }
+});
+
+$('#main').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  const act = b.dataset.act, id = b.dataset.id;
+  const topic = () => db.topics.find(t=>t.id===id);
+  const proj = () => db.projects.find(p=>p.id===id);
+
+  switch(act){
+    case 'hours-add': openHours(id); break;
+    case 'entry-edit': openHours(db.entries.find(x=>x.id===id).topicId, id); break;
+    case 'entry-del':
+      if(confirm('Remover este lançamento de horas?')){ db.entries = db.entries.filter(x=>x.id!==id); save(); render(); }
+      break;
+
+    case 'topic-edit': ui.editing = id; render(); break;
+    case 'topic-cancel': ui.editing = null; render(); break;
+    case 'topic-save': {
+      const li = b.closest('.topic'); const t = topic();
+      const est = parseH($('[data-f=est]', li).value);
+      const desc = $('[data-f=desc]', li).value.trim();
+      if(!desc){ toast('A descrição não pode ficar vazia.'); return; }
+      if(est===null){ toast('Estimativa inválida. Use HH:MM.'); return; }
+      t.description = desc; t.owner = $('[data-f=owner]', li).value; t.estimateMin = est;
+      ui.editing = null; save(); render(); toast('Tópico salvo.');
+      break; }
+    case 'topic-done': {
+      const t = topic(), w = workedTopic(t.id);
+      if(w===0 && !confirm('Nenhuma hora foi lançada neste tópico. Concluir mesmo assim?')) return;
+      t.status = 'done'; t.completedAt = todayISO(); t.finalMinutes = w;
+      save(); render(); toast(`Tópico concluído. Total utilizado: ${fmtH(w)}.`);
+      break; }
+    case 'topic-reopen': {
+      const t = topic(); t.status = 'open'; t.completedAt = null; t.finalMinutes = null;
+      save(); render(); break; }
+    case 'topic-del':
+      if(confirm('Excluir este tópico e todas as horas lançadas nele?')){
+        db.topics = db.topics.filter(t=>t.id!==id); db.entries = db.entries.filter(x=>x.topicId!==id); save(); render();
+      }
+      break;
+
+    case 'proj-done': {
+      const open = topicsOf(id).filter(t=>t.status==='open').length;
+      if(open && !confirm(`Ainda há ${open} tópico${open>1?'s':''} em aberto. Concluir o projeto mesmo assim?`)) return;
+      proj().status = 'done'; save(); render(); toast('Projeto concluído.'); break; }
+    case 'proj-archive': proj().status = 'archived'; save(); render(); toast('Projeto arquivado.'); break;
+    case 'proj-reopen': proj().status = 'active'; save(); render(); break;
+    case 'proj-del':
+      if(confirm('Excluir o projeto, seus tópicos e todas as horas lançadas?')){
+        const tids = topicsOf(id).map(t=>t.id);
+        db.entries = db.entries.filter(x=>!tids.includes(x.topicId));
+        db.topics = db.topics.filter(t=>t.projectId!==id);
+        db.projects = db.projects.filter(p=>p.id!==id); save(); render();
+      }
+      break;
+
+    case 'rel-clear': ui.rel = {from:'', to:''}; render(); break;
+    case 'member-del': {
+      const n = b.dataset.name;
+      const used = db.projects.some(p=>p.owner===n) || db.topics.some(t=>t.owner===n) || db.entries.some(x=>x.owner===n);
+      if(used){ toast(`${n} já aparece em projetos ou lançamentos e não pode ser removido.`); return; }
+      db.team = db.team.filter(m=>m!==n); save(); render(); break; }
+    case 'reset':
+      if(confirm('Apagar tudo e voltar aos dados de exemplo?')){ db = seed(); ui.open.clear(); ui.logs.clear(); save(); render(); }
+      break;
+  }
+});
+
+render();
+</script>
+</body>
+</html>
