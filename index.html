@@ -184,7 +184,7 @@ dialog h3{margin:0}
     <button data-view="painel">Painel de controle</button>
     <button data-view="novo">Cadastrar novo projeto</button>
     <button data-view="rel">Relatórios</button>
-    <button data-view="equipe">Equipe</button>    
+    <button data-view="equipe">Equipe</button>
     <button data-view="clientes">Clientes</button>
   </nav>
   <div class="side-foot">
@@ -267,7 +267,7 @@ const ui = {
   open:new Set(), logs:new Set(),
   editing:null,
   dlg:null,
-  rel:{from:'', to:''}
+  rel:{from:'', to:'', client:'', owner:'', status:''}
 };
 
 const STATUS = {active:'Ativo', done:'Concluído', archived:'Arquivado'};
@@ -443,37 +443,46 @@ function viewNovo(){
 }
 
 function viewRel(){
-  const {from,to} = ui.rel;
+  const {from,to,client,owner,status} = ui.rel;
   const inRange = d => (!from || d>=from) && (!to || d<=to);
-  const entries = db.entries.filter(e => inRange(e.date));
-  const rows = db.projects.map(p=>{
+  const eligibleProjects = db.projects.filter(p =>
+    (!client || p.client===client) &&
+    (!owner || p.owner===owner) &&
+    (!status || p.status===status)
+  );
+  const eligibleIds = new Set(eligibleProjects.map(p=>p.id));
+  const eligibleTopicIds = new Set(db.topics.filter(t=>eligibleIds.has(t.projectId)).map(t=>t.id));
+  const entries = db.entries.filter(e => inRange(e.date) && eligibleTopicIds.has(e.topicId) && (!owner || e.owner===owner));
+  const rows = eligibleProjects.map(p=>{
     const tids = topicsOf(p.id).map(t=>t.id);
     const worked = entries.filter(e=>tids.includes(e.topicId)).reduce((s,e)=>s+e.minutes,0);
     const ts = topicsOf(p.id);
     return {p, est:estProject(p.id), worked, done:ts.filter(t=>t.status==='done').length, total:ts.length};
   }).filter(r => r.worked>0 || (!from && !to));
   const totWorked = rows.reduce((s,r)=>s+r.worked,0), totEst = rows.reduce((s,r)=>s+r.est,0);
-
-  const byOwner = db.team.map(m=>({m, min: entries.filter(e=>e.owner===m).reduce((s,e)=>s+e.minutes,0)}));
-  const completed = db.topics.filter(t=>t.status==='done' && inRange(t.completedAt||''));
+  const byOwner = db.team.filter(m=>!owner || m===owner).map(m=>({m, min: entries.filter(e=>e.owner===m).reduce((s,e)=>s+e.minutes,0)}));
+  const completed = db.topics.filter(t=>eligibleIds.has(db.projects.find(p=>p.id===t.projectId)?.id) && t.status==='done' && inRange(t.completedAt||''));
 
   return `
     <h1>Relatórios</h1>
     <p class="lead">Horas lançadas por projeto, por pessoa e fechamento dos tópicos concluídos.</p>
-    <div class="card pad" style="margin-bottom:1rem;display:grid;grid-template-columns:1fr 1fr auto;gap:1rem;align-items:end;max-width:640px">
+    <div class="card pad" style="margin-bottom:1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;align-items:end">
       <div><label for="r-from">De</label><input type="date" id="r-from" data-rel="from" value="${from}"></div>
       <div><label for="r-to">Até</label><input type="date" id="r-to" data-rel="to" value="${to}"></div>
-      <button class="btn" data-act="rel-clear">Limpar período</button>
+      <div><label for="r-client">Cliente</label><select id="r-client" data-rel="client">${opt('','Todos os clientes',!client)}${db.clients.map(c=>opt(c,c,client===c)).join('')}</select></div>
+      <div><label for="r-owner">Responsável</label><select id="r-owner" data-rel="owner">${opt('','Todos os responsáveis',!owner)}${db.team.map(m=>opt(m,m,owner===m)).join('')}</select></div>
+      <div><label for="r-status">Status do projeto</label><select id="r-status" data-rel="status">${opt('','Todos os status',!status)}${Object.entries(STATUS).map(([k,v])=>opt(k,v,status===k)).join('')}</select></div>
+      <button class="btn" data-act="rel-clear">Limpar filtros</button>
     </div>
 
     <div class="card scroll" style="margin-bottom:1rem">
       <table class="data num">
         <thead><tr><th>Projeto</th><th>Cliente</th><th class="r">Estimado</th><th class="r">Horas utilizadas</th><th class="r">Diferença</th><th class="r">Tópicos concluídos</th></tr></thead>
         <tbody>${rows.map(r=>`
-          <tr><td>${esc(r.p.name)}<div class="code">${esc(r.p.code)}</div></td><td>${esc(r.p.client)}</td>
+          <tr><td>${esc(r.p.name)}<div class="code">${esc(r.p.code)} · ${esc(STATUS[r.p.status]||r.p.status||'')}</div></td><td>${esc(r.p.client)}</td>
           <td class="r">${fmtH(r.est)}</td><td class="r"><b>${fmtH(r.worked)}</b></td>
           <td class="r ${r.worked>r.est?'over-txt':''}">${(from||to)?'—':fmtDiff(r.worked-r.est)}</td>
-          <td class="r">${r.done}/${r.total}</td></tr>`).join('') || `<tr><td colspan="6" class="empty">Sem lançamentos no período.</td></tr>`}
+          <td class="r">${r.done}/${r.total}</td></tr>`).join('') || `<tr><td colspan="6" class="empty">Nenhum projeto encontrado com os filtros selecionados.</td></tr>`}
         </tbody>
         <tfoot><tr><td colspan="2">Total geral</td><td class="r">${fmtH(totEst)}</td><td class="r">${fmtH(totWorked)}</td><td></td><td></td></tr></tfoot>
       </table>
@@ -483,7 +492,7 @@ function viewRel(){
       <div class="card scroll">
         <table class="data num">
           <thead><tr><th>Responsável</th><th class="r">Horas lançadas</th></tr></thead>
-          <tbody>${byOwner.map(o=>`<tr><td>${esc(o.m)}</td><td class="r">${fmtH(o.min)}</td></tr>`).join('')}</tbody>
+          <tbody>${byOwner.map(o=>`<tr><td>${esc(o.m)}</td><td class="r">${fmtH(o.min)}</td></tr>`).join('') || `<tr><td colspan="2" class="empty">Nenhum lançamento encontrado.</td></tr>`}</tbody>
         </table>
       </div>
       <div class="card scroll">
@@ -799,7 +808,7 @@ $('#main').addEventListener('click', e => {
         });
       break;
 
-    case 'rel-clear': ui.rel = {from:'', to:''}; render(); break;
+    case 'rel-clear': ui.rel = {from:'', to:'', client:'', owner:'', status:''}; render(); break;
     case 'member-del': {
       const n = b.dataset.name;
       const used = db.projects.some(p=>p.owner===n) || db.topics.some(t=>t.owner===n) || db.entries.some(x=>x.owner===n);
