@@ -88,7 +88,8 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .notes-box{border:1px solid var(--line);border-radius:var(--radius);padding:1rem;margin:0 0 1.5rem;background:var(--surface-2)}
 .notes-box textarea{min-height:150px;resize:vertical;white-space:pre-wrap}
 .pendency-form{display:grid;grid-template-columns:1fr 190px auto;gap:.75rem;align-items:end;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);padding:1rem;margin-bottom:1rem}
-.pendency{display:grid;grid-template-columns:1fr auto;gap:.5rem 1rem;padding:1rem 0;border-top:1px solid var(--line)}\n.pendency:first-child{border-top:0}
+.pendency{display:grid;grid-template-columns:1fr auto;gap:.5rem 1rem;padding:1rem 0;border-top:1px solid var(--line)}
+.pendency:first-child{border-top:0}
 .pendency.done .pendency-title{text-decoration:line-through;color:var(--muted)}
 .pendency-controls{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
 .pendency-controls select{width:auto;min-width:145px}
@@ -820,7 +821,7 @@ $('#main').addEventListener('click', e => {
       if(!clean){ toast('A descrição não pode ficar vazia.'); return; }
       const dueDate = prompt('Data prevista de entrega (AAAA-MM-DD):', pen.dueDate);
       if(dueDate===null) return;
-      if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(dueDate)){ toast('Informe a data no formato AAAA-MM-DD.'); return; }
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)){ toast('Informe a data no formato AAAA-MM-DD.'); return; }
       run(async () => { Object.assign(pen, await api.pendencies.update(id, {description:clean, dueDate})); return 'Pendência atualizada.'; });
       break; }
     case 'pendency-del': {
